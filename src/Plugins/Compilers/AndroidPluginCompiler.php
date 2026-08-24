@@ -1043,7 +1043,7 @@ class AndroidPluginCompiler
         if (! str_contains($manifest, 'android:localeConfig')) {
             $manifest = preg_replace(
                 '/<application\b/',
-                '<application\n        android:localeConfig="@xml/locales_config"',
+                "<application\n        android:localeConfig=\"@xml/locales_config\"",
                 $manifest,
                 1
             );
