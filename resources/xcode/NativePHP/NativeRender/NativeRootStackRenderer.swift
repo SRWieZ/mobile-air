@@ -97,6 +97,9 @@ struct NativeRootStackRenderer: View {
         let showBack = root.props.getBool("back")
         let bgArgb = root.props.getColor("background_color", default: 0)
         let textArgb = root.props.getColor("text_color", default: 0)
+        // Dark-mode companions of a `theme-<token>` bar color.
+        let darkBgArgb = root.props.getColor("dark_background_color", default: 0)
+        let darkTextArgb = root.props.getColor("dark_text_color", default: 0)
         // Per-layout / per-bar chrome font (font_name prop), resolved through
         // the plugin seam. Applies where WE draw the title (the principal-slot
         // path); system-drawn `.navigationTitle` large titles keep the global
@@ -123,7 +126,7 @@ struct NativeRootStackRenderer: View {
                 && !NativeRootHostRegistry.shared.consumes($0.type)
         }
 
-        let textColor: Color = textArgb != 0 ? Color(argb: textArgb) : .primary
+        let textColor: Color = textArgb != 0 ? Color(argb: textArgb, darkArgb: darkTextArgb) : .primary
         let hasExplicitBg = bgArgb != 0
 
         // `textColor` only reaches chrome WE draw — the back chevron, the
@@ -132,9 +135,10 @@ struct NativeRootStackRenderer: View {
         // modes use) take their color from the bar's color scheme instead, so
         // an explicit `background_color` could otherwise leave a light bar with
         // a dark-mode white title — invisible. Derive the scheme from the
-        // developer's `text_color`, matching NativeRootTabsRenderer.
+        // developer's `text_color`, matching NativeRootTabsRenderer. A themed
+        // text color already suits each mode, so the bar follows the app's.
         let toolbarScheme: ColorScheme? = {
-            guard textArgb != 0 else { return nil }
+            guard textArgb != 0, darkTextArgb == 0 else { return nil }
             let r = Double((textArgb >> 16) & 0xFF) / 255.0
             let g = Double((textArgb >>  8) & 0xFF) / 255.0
             let b = Double( textArgb        & 0xFF) / 255.0
@@ -249,7 +253,7 @@ struct NativeRootStackRenderer: View {
             }
             .toolbarColorScheme(toolbarScheme, for: .navigationBar)
             .modifier(HideNavBarModifier(hidden: hideNavBar))
-            .modifier(StackBarBackgroundModifier(argb: bgArgb, inline: displayModeStr == "inline"))
+            .modifier(StackBarBackgroundModifier(argb: bgArgb, darkArgb: darkBgArgb, inline: displayModeStr == "inline"))
             .modifier(StackBottomBarInsetModifier(bottomBar: bottomBar))
             // Inline search field — Apple HIG / Expo pattern. The
             // SearchableNavBarModifier (defined in NativeRootTabsRenderer.swift,
@@ -504,15 +508,17 @@ private struct StackBottomBarInsetModifier: ViewModifier {
 /// Module-internal so the tabs renderer can use it for large-title bars.
 struct StackBarBackgroundModifier: ViewModifier {
     let argb: Int
+    var darkArgb: Int = 0
     let inline: Bool
 
     func body(content: Content) -> some View {
+        let color = Color(argb: argb, darkArgb: darkArgb)
         if argb != 0 {
             if #available(iOS 18.0, *), inline {
                 content
-                    .toolbarBackground(Color(argb: argb), for: .navigationBar)
+                    .toolbarBackground(color, for: .navigationBar)
                     .toolbarBackground(.visible, for: .navigationBar)
-                    .containerBackground(Color(argb: argb), for: .navigation)
+                    .containerBackground(color, for: .navigation)
             } else if #available(iOS 18.0, *) {
                 // `containerBackground(for: .navigation)` themes the WHOLE
                 // navigation surface — the scroll edge, the expanded
@@ -525,11 +531,11 @@ struct StackBarBackgroundModifier: ViewModifier {
                 // Liquid Glass. toolbarBackground still tints the collapsed
                 // bar after scrolling.
                 content
-                    .toolbarBackground(Color(argb: argb), for: .navigationBar)
-                    .containerBackground(Color(argb: argb), for: .navigation)
+                    .toolbarBackground(color, for: .navigationBar)
+                    .containerBackground(color, for: .navigation)
             } else {
                 content
-                    .toolbarBackground(Color(argb: argb), for: .navigationBar)
+                    .toolbarBackground(color, for: .navigationBar)
                     .toolbarBackground(.visible, for: .navigationBar)
             }
         } else {
@@ -655,5 +661,20 @@ struct TopBarActionA11yLabelModifier: ViewModifier {
         } else {
             content.accessibilityLabel(Text(label))
         }
+    }
+}
+
+extension Color {
+    /// A color that follows the light / dark trait wherever it is drawn, so a
+    /// cached screen is already right when it comes back. `darkArgb` 0 means
+    /// one color for both modes.
+    init(argb: Int, darkArgb: Int) {
+        guard darkArgb != 0 else {
+            self.init(argb: argb)
+            return
+        }
+        self.init(uiColor: UIColor { traits in
+            UIColor(argb: traits.userInterfaceStyle == .dark ? darkArgb : argb)
+        })
     }
 }

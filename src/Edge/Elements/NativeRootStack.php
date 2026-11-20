@@ -50,6 +50,13 @@ class NativeRootStack extends Element
         if (isset($attrs['textColor'])) {
             $this->props['text_color'] = $attrs['textColor'];
         }
+        // Dark-mode companions of a `theme-<token>` bar color (NavBar).
+        if (isset($attrs['darkBackgroundColor'])) {
+            $this->props['dark_background_color'] = $attrs['darkBackgroundColor'];
+        }
+        if (isset($attrs['darkTextColor'])) {
+            $this->props['dark_text_color'] = $attrs['darkTextColor'];
+        }
         if (isset($attrs['fontName'])) {
             $this->props['font_name'] = $attrs['fontName'];
         }

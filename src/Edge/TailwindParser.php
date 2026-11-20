@@ -1410,7 +1410,8 @@ class TailwindParser
         return $out;
     }
 
-    private static function resolveThemeToken(string $token, bool $dark = false): ?string
+    /** A theme token's hex for light (or dark) mode, or null when it isn't in the theme. */
+    public static function resolveThemeToken(string $token, bool $dark = false): ?string
     {
         $resolver = $dark ? static::$themeDarkResolver : static::$themeResolver;
         if ($resolver === null) {

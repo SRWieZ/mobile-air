@@ -114,8 +114,12 @@ fun NativeRootStackRenderer(node: NativeUINode, modifier: Modifier = Modifier) {
     val subtitle = activeNode.props.getString("subtitle", "")
     val showBack = activeNode.props.getBool("back")
     val reservesNavigationBarSlot = NativeRootHostRegistry.reservesNavigationBarSlot(activeNode)
-    val bgArgb = activeNode.props.getColor("background_color", 0)
-    val textArgb = activeNode.props.getColor("text_color", 0)
+    // A `theme-<token>` bar color carries a `dark_*` companion for dark mode.
+    val isDark = isSystemInDarkTheme()
+    val bgArgb = activeNode.props.getColor("dark_background_color", 0).takeIf { isDark && it != 0 }
+        ?: activeNode.props.getColor("background_color", 0)
+    val textArgb = activeNode.props.getColor("dark_text_color", 0).takeIf { isDark && it != 0 }
+        ?: activeNode.props.getColor("text_color", 0)
     val hasExplicitBg = bgArgb != 0
     val hasExplicitText = textArgb != 0
     // Per-layout / per-bar chrome font (font_name prop), resolved through the

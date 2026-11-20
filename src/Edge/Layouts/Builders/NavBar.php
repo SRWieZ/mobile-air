@@ -8,6 +8,7 @@ use Native\Mobile\Edge\Elements\Image;
 use Native\Mobile\Edge\Elements\TopBar;
 use Native\Mobile\Edge\Elements\TopBarAction;
 use Native\Mobile\Edge\Elements\TopBarTitle;
+use Native\Mobile\Edge\TailwindParser;
 
 /**
  * Fluent builder for the top navigation bar.
@@ -415,10 +416,10 @@ class NavBar
             $attrs['subtitle'] = $this->subtitle;
         }
         if ($this->backgroundColor !== null) {
-            $attrs['backgroundColor'] = $this->backgroundColor;
+            $attrs += self::themedColor('backgroundColor', $this->backgroundColor);
         }
         if ($this->textColor !== null) {
-            $attrs['textColor'] = $this->textColor;
+            $attrs += self::themedColor('textColor', $this->textColor);
         }
         if ($this->font !== null) {
             $attrs['fontName'] = $this->font;
@@ -445,6 +446,29 @@ class NavBar
         }
 
         return $attrs;
+    }
+
+    /**
+     * A `theme-<token>` color becomes the token's light hex plus, when it
+     * differs, a `dark…` companion the renderers use in dark mode, the pair
+     * a `bg-theme-*` class carries. Any other value passes through as is.
+     *
+     * @return array<string, string>
+     */
+    private static function themedColor(string $key, string $color): array
+    {
+        $token = str_starts_with($color, 'theme-') ? substr($color, 6) : null;
+        $light = $token !== null ? TailwindParser::resolveThemeToken($token) : null;
+
+        if ($light === null) {
+            return [$key => $color];
+        }
+
+        $dark = TailwindParser::resolveThemeToken($token, true);
+
+        return $dark !== null && $dark !== $light
+            ? [$key => $light, 'dark'.ucfirst($key) => $dark]
+            : [$key => $light];
     }
 
     /** @return NavAction[] */

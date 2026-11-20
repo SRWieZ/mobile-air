@@ -3,11 +3,13 @@
 use Native\Mobile\Edge\CallbackRegistry;
 use Native\Mobile\Edge\Elements\BottomNav;
 use Native\Mobile\Edge\Elements\BottomNavItem;
+use Native\Mobile\Edge\Elements\NativeRootStack;
 use Native\Mobile\Edge\Elements\TopBar;
 use Native\Mobile\Edge\Elements\TopBarAction;
 use Native\Mobile\Edge\Layouts\Builders\NavBar;
 use Native\Mobile\Edge\Layouts\Builders\Tab;
 use Native\Mobile\Edge\Layouts\Builders\TabBar;
+use Native\Mobile\Edge\TailwindParser;
 use Native\Mobile\Testing\Native;
 use Tests\Fixtures\Edge\ChromeTabsLayout;
 use Tests\Fixtures\Edge\CustomTopBarScreen;
@@ -63,6 +65,50 @@ it('reconstructs a NavBar from a collected top_bar element', function () {
         'scrollBehavior' => 'pinned',
         'elevation' => 3,
     ]);
+});
+
+describe('theme-token bar colors', function () {
+    beforeEach(function () {
+        TailwindParser::setThemeResolver(fn (string $token): ?string => match ($token) {
+            'background' => '#F0E9DE',
+            'on-background' => '#1C1917',
+            'brand' => '#9A5E18',
+            default => null,
+        });
+        TailwindParser::setThemeDarkResolver(fn (string $token): ?string => match ($token) {
+            'background' => '#000000',
+            'on-background' => '#F5F0EA',
+            'brand' => '#9A5E18',
+            default => null,
+        });
+    });
+
+    afterEach(function () {
+        TailwindParser::setThemeResolver(null);
+        TailwindParser::setThemeDarkResolver(null);
+    });
+
+    it('sends the dark value of a theme-token bar color, like a bg-theme class', function () {
+        $el = TopBar::make();
+        $el->applyAttributes(['background-color' => 'theme-background', 'text-color' => 'theme-on-background']);
+
+        $root = NativeRootStack::make();
+        $root->applyAttributes(NavBar::fromElement($el)->toRootProps());
+
+        expect($root->toArray(new CallbackRegistry)['props'])->toMatchArray([
+            'background_color' => '#F0E9DE',
+            'dark_background_color' => '#000000',
+            'text_color' => '#1C1917',
+            'dark_text_color' => '#F5F0EA',
+        ]);
+    });
+
+    it('sends hex colors and tokens without a dark variant as before', function () {
+        $props = NavBar::make()->backgroundColor('theme-brand')->textColor('#FFFFFF')->toRootProps();
+
+        expect($props)->toMatchArray(['backgroundColor' => '#9A5E18', 'textColor' => '#FFFFFF'])
+            ->not->toHaveKeys(['darkBackgroundColor', 'darkTextColor']);
+    });
 });
 
 it('adopts top_bar_action children as prebuilt action elements', function () {
